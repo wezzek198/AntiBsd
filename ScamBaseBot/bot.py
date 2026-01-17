@@ -44,15 +44,13 @@ CONFIG_FILE = os.path.join(SCRIPT_DIR, 'config.json')
 IMAGES_FOLDER = os.path.join(SCRIPT_DIR, 'bot_images')
 ADMIN_CHAT_ID = -1003660247060  # ID админ-чата
 
-# Токен вашего бота
-TOKEN = "7765119641:AAEGPtZsikzMSK8UAbsbFWwBXnXmWDxudOU"
 
 # Username бота для отображения в сообщениях
 BOT_USERNAME = "wzkbScamBaseBot"
 
-# Telegram API данные
-TELEGRAM_API_ID = 38088481
-TELEGRAM_API_HASH = "69dc6648ef1196a685570a4bede5795f"
+TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+TELEGRAM_API_ID = os.getenv('TELEGRAM_API_ID')
+TELEGRAM_API_HASH = os.getenv('TELEGRAM_API_HASH')
 
 # Канал для обязательной подписки
 REQUIRED_CHANNEL_ID = -1002129588192  # ID канала для подписки
@@ -2275,4 +2273,5 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"\n❌ Непредвиденная ошибка: {e}")
         logger.error(f"Непредвиденная ошибка: {e}", exc_info=True)
+
         sys.exit(1)
