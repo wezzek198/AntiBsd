@@ -10,6 +10,25 @@ from typing import Dict, Optional, List, Tuple
 from datetime import datetime
 from enum import Enum
 
+# === АВТОМАТИЧЕСКАЯ УСТАНОВКА ЗАВИСИМОСТЕЙ ===
+try:
+    import telethon
+    from telegram import __version__ as ptb_version
+    print(f"✅ Библиотеки уже установлены: telethon, python-telegram-bot {ptb_version}")
+except ImportError:
+    print("📦 Устанавливаю зависимости...")
+    import subprocess
+    
+    # Устанавливаем библиотеки
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "python-telegram-bot[job-queue]==20.7"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "telethon==1.34.0"])
+    
+    print("✅ Зависимости установлены. Перезапускаю бота...")
+    
+    # Перезапускаем скрипт с установленными библиотеками
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+# === ОСТАЛЬНЫЕ ИМПОРТЫ ===
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, PhotoSize
 from telegram.ext import (
     Application,
@@ -20,6 +39,10 @@ from telegram.ext import (
     filters
 )
 
+# Telethon для User API
+from telethon import TelegramClient
+from telethon.tl.functions.users import GetUsersRequest
+from telethon.tl.types import User
 # Telethon для User API
 from telethon import TelegramClient
 from telethon.tl.functions.users import GetUsersRequest
@@ -2255,3 +2278,4 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+
