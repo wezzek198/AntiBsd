@@ -2267,11 +2267,10 @@ if __name__ == '__main__':
         loop = asyncio.get_event_loop()
         loop.run_until_complete(main())
         
-    except KeyboardInterrupt:
+        except KeyboardInterrupt:
         print("\n\n🛑 Бот остановлен пользователем (Ctrl+C)")
         sys.exit(0)
     except Exception as e:
         print(f"\n❌ Непредвиденная ошибка: {e}")
         logger.error(f"Непредвиденная ошибка: {e}", exc_info=True)
-
         sys.exit(1)
