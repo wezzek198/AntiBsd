@@ -1,6 +1,3 @@
-import nest_asyncio
-nest_asyncio.apply()
-
 import logging
 import json
 import os
@@ -2257,20 +2254,4 @@ async def main():
         raise
 
 if __name__ == '__main__':
-    try:
-        import sys
-        print(f"🐍 Python версия: {sys.version}")
-        
-        sys.setrecursionlimit(10000)
-        
-        # Используем старый метод запуска для совместимости
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main())
-        
-    except KeyboardInterrupt:
-        print("\n\n🛑 Бот остановлен пользователем (Ctrl+C)")
-        sys.exit(0)
-    except Exception as e:
-        print(f"\n❌ Непредвиденная ошибка: {e}")
-        logger.error(f"Непредвиденная ошибка: {e}", exc_info=True)
-        sys.exit(1)
+    asyncio.run(main())
