@@ -2299,7 +2299,7 @@ async def main():
         print("📡 Ожидание команд...")
         print("Для остановки нажмите Ctrl+C")
         
-        # Запускаем polling
+        # Запускаем polling с параметром close_loop=False
         await application.run_polling(allowed_updates=Update.ALL_TYPES, close_loop=False)
         
     except Exception as e:
@@ -2310,40 +2310,38 @@ async def main():
             await telegram_api.close()
         
         print("\n⏳ Завершение работы...")
-        await asyncio.sleep(2)
         raise
 
-if __name__ == '__main__':
+def run_bot():
+    """Функция для запуска бота в хостинг-окружении"""
     try:
-        import sys
-        
-        # ОЧЕНЬ ВАЖНО: Проверяем версию Python и запускаем правильно
-        if sys.platform == 'win32':
-            # Для Windows
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        
-        # Запускаем бота
-        print("🚀 Запускаем бота...")
-        asyncio.run(main())
-        
-    except KeyboardInterrupt:
-        print("\n\n🛑 Бот остановлен пользователем")
-        sys.exit(0)
-    except RuntimeError as e:
-        if "event loop is already running" in str(e):
-            print("⚠️ Ошибка event loop. Пробую альтернативный запуск...")
-            # Альтернативный способ запуска
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        # Устанавливаем политику event loop для Linux/Unix
+        if sys.platform != 'win32':
             try:
-                loop.run_until_complete(main())
-            finally:
+                import uvloop
+                uvloop.install()
+                print("✅ Используется uvloop для лучшей производительности")
+            except ImportError:
+                print("⚠️ uvloop не установлен, используется стандартный asyncio")
+        
+        # Создаем event loop и запускаем бота
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            loop.run_until_complete(main())
+        except KeyboardInterrupt:
+            print("\n\n🛑 Бот остановлен пользователем")
+        finally:
+            # Закрываем loop
+            if not loop.is_closed():
                 loop.close()
-        else:
-            print(f"\n❌ RuntimeError: {e}")
-            sys.exit(1)
+                
     except Exception as e:
         print(f"\n❌ Непредвиденная ошибка: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
+
+if __name__ == '__main__':
+    run_bot()
