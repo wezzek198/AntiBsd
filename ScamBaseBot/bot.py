@@ -2318,11 +2318,8 @@ if __name__ == '__main__':
         import sys
         print(f"🐍 Python версия: {sys.version}")
         
-        sys.setrecursionlimit(10000)
-        
-        # Используем старый метод запуска для совместимости с nest_asyncio
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main())
+        # Используем asyncio.run() для Python 3.7+
+        asyncio.run(main())
         
     except KeyboardInterrupt:
         print("\n\n🛑 Бот остановлен пользователем (Ctrl+C)")
@@ -2330,6 +2327,4 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"\n❌ Непредвиденная ошибка: {e}")
         logger.error(f"Непредвиденная ошибка: {e}", exc_info=True)
-
         sys.exit(1)
-
