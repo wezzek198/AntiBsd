@@ -2299,29 +2299,54 @@ async def main():
         print("📡 Ожидание команд...")
         
         # 🔴 НЕ используем application.run_polling()
-              # ✅ Запускаем polling с правильными параметрами для хостинга
-        print("\n🔄 Запускаю polling...")
+                   print(f"{'='*50}")
+        print("📡 Ожидание команд...")
+
+        # 🎯 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Запускаем polling в отдельном потоке
+        import threading
         
-        # Сначала проверяем и удаляем webhook если есть
+        def run_polling():
+            """Запуск polling в отдельном потоке"""
+            try:
+                # Создаем новый event loop для этого потока
+                import asyncio as async_module
+                loop = async_module.new_event_loop()
+                async_module.set_event_loop(loop)
+                
+                # Сначала удаляем webhook
+                try:
+                    loop.run_until_complete(application.bot.delete_webhook(drop_pending_updates=True))
+                    print("✅ Webhook удален (в потоке)")
+                except:
+                    pass
+                
+                # Запускаем polling
+                loop.run_until_complete(
+                    application.run_polling(
+                        allowed_updates=Update.ALL_TYPES,
+                        drop_pending_updates=True,
+                        poll_interval=0.5,
+                        close_loop=True  # Закрываем loop в этом потоке
+                    )
+                )
+            except Exception as e:
+                print(f"❌ Ошибка в потоке polling: {e}")
+        
+        print("\n🔄 Запускаю polling в отдельном потоке...")
+        polling_thread = threading.Thread(target=run_polling, daemon=True)
+        polling_thread.start()
+        print("✅ Polling запущен в потоке")
+        
+        # ⏳ Удерживаем основной поток
         try:
-            webhook_info = await application.bot.get_webhook_info()
-            if webhook_info.url:
-                print(f"⚠️ Обнаружен webhook: {webhook_info.url}")
-                await application.bot.delete_webhook()
-                print("✅ Webhook удален")
-        except Exception as e:
-            print(f"⚠️ Ошибка проверки webhook: {e}")
+            import time
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n🛑 Останавливаю бота...")
         
-        # Запускаем polling
-        await application.run_polling(
-            allowed_updates=Update.ALL_TYPES,
-            close_loop=False,  # НЕ закрываем event loop
-            drop_pending_updates=True,
-            poll_interval=0.5,  # Быстрый опрос
-            timeout=30
-        )
     except Exception as e:
-        print(f"\n❌ КРИТИЧЕСКАЯ ОШИБКА ПРИ ЗАПУСКЕ БОТА: {e}")
+        print(f"\n❌ КРИТИЧЕСКАЯ ОШИБКА: {e}")
         import traceback
         traceback.print_exc()
         
@@ -2331,54 +2356,16 @@ async def main():
         print("\n⏳ Завершение работы...")
         raise
 
-def run_bot():
-    """Запуск бота для хостинга"""
+
+if __name__ == '__main__':
     print("🤖 Запуск AntiScamBase Bot...")
     
     try:
-        # Пытаемся получить текущий loop
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        # Нет loop, создаем новый
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
-    # Запускаем main
-    try:
-        if loop.is_running():
-            print("⚠️ Event loop уже запущен (хостинг)")
-            print("🎯 Создаю задачу в существующем loop...")
-            
-            # Создаем задачу
-            task = loop.create_task(main())
-            
-            # Удерживаем выполнение
-            try:
-                # Простой способ - ждем завершения задачи
-                while not task.done():
-                    import time
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                print("\n🛑 Получен KeyboardInterrupt")
-                task.cancel()
-                
-                # Ждем завершения
-                if not task.done():
-                    try:
-                        loop.run_until_complete(task)
-                    except asyncio.CancelledError:
-                        pass
-        else:
-            print("✅ Запускаю бота...")
-            loop.run_until_complete(main())
-            
+        # Просто запускаем main
+        asyncio.run(main())
     except KeyboardInterrupt:
         print("\n🛑 Бот остановлен")
     except Exception as e:
-        print(f"❌ Ошибка запуска: {e}")
+        print(f"❌ Ошибка: {e}")
         import traceback
         traceback.print_exc()
-
-if __name__ == '__main__':
-    run_bot()
-
