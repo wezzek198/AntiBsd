@@ -23,16 +23,12 @@ def install_packages():
 if not install_packages():
     sys.exit(1)
 
-# Докер опять накрылся.
-
 import logging
 import json
-import os
 import re
 import random
 import traceback
 import asyncio
-import sys
 from typing import Dict, Optional, List, Tuple
 from datetime import datetime
 from enum import Enum
@@ -47,52 +43,42 @@ from telegram.ext import (
     filters
 )
 
-# Telethon для User API
 from telethon import TelegramClient
 from telethon.tl.functions.users import GetUsersRequest
 from telethon.tl.types import User
 
-# Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Получаем путь к папке, где находится скрипт
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Конфигурация - пути относительно папки скрипта
 DB_FILE = os.path.join(SCRIPT_DIR, 'data', 'scammers_db.json')
 CONFIG_FILE = os.path.join(SCRIPT_DIR, 'config.json')
 IMAGES_FOLDER = os.path.join(SCRIPT_DIR, 'bot_images')
-ADMIN_CHAT_ID = -1003660247060  # ID админ-чата
+ADMIN_CHAT_ID = -1003660247060
 
-
-# Username бота для отображения в сообщениях
 BOT_USERNAME = "wzkbScamBaseBot"
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID", 0))
 TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH", "")
-# Канал для обязательной подписки
-REQUIRED_CHANNEL_ID = -1002129588192  # ID канала для подписки
-REQUIRED_CHANNEL_USERNAME = "@wzkbnews"  # Username канала
+REQUIRED_CHANNEL_ID = -1002129588192
+REQUIRED_CHANNEL_USERNAME = "@wzkbnews"
 
-# Права доступа
 class UserRole(Enum):
-    USER = "user"        # Обычный пользователь
-    ADMIN = "admin"      # Администратор (может добавлять/редактировать в админ-чате)
-    SPECIAL_ADMIN = "special_admin"  # Спец-админ (может удалять)
-    OWNER = "owner"      # Владелец (все права)
+    USER = "user"
+    ADMIN = "admin"
+    SPECIAL_ADMIN = "special_admin"
+    OWNER = "owner"
 
-# Конфигурация по умолчанию
 DEFAULT_CONFIG = {
-    "owner_id": 1307172745,  # Ваш ID
-    "special_admins": [7294311247],  # ID спец-админов
-    "admins": [],  # ID обычных админов
-    "admin_chat_id": ADMIN_CHAT_ID,  # ID админ-чата
-    "admin_chat_username": "wzkbScamBaseChat",  # Username админ-чата
+    "owner_id": 1307172745,
+    "special_admins": [7294311247],
+    "admins": [],
+    "admin_chat_id": ADMIN_CHAT_ID,
+    "admin_chat_username": "wzkbScamBaseChat",
     "required_channel_id": REQUIRED_CHANNEL_ID,
     "required_channel_username": REQUIRED_CHANNEL_USERNAME,
     "images": {
@@ -102,7 +88,7 @@ DEFAULT_CONFIG = {
         "admin": None
     },
     "restrict_add_to_admin_chat": True,
-    "check_subscription": True  # Включить проверку подписки
+    "check_subscription": True
 }
 
 class Config:
@@ -112,13 +98,11 @@ class Config:
         self.ensure_images_folder()
     
     def ensure_images_folder(self):
-        """Создать папку для картинок, если её нет"""
         if not os.path.exists(IMAGES_FOLDER):
             os.makedirs(IMAGES_FOLDER)
             logger.info(f"Создана папка для картинок: {IMAGES_FOLDER}")
     
     def load_config(self) -> Dict:
-        """Загрузка конфигурации из файла"""
         if os.path.exists(self.config_file):
             try:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
@@ -132,7 +116,6 @@ class Config:
         return DEFAULT_CONFIG.copy()
     
     def save_config(self):
-        """Сохранение конфигурации"""
         try:
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, ensure_ascii=False, indent=2)
@@ -140,7 +123,6 @@ class Config:
             logger.error(f"Ошибка сохранения конфига: {e}")
     
     def get_user_role(self, user_id: int) -> UserRole:
-        """Получение роли пользователя"""
         try:
             user_id_int = int(user_id) if isinstance(user_id, str) and user_id.isdigit() else user_id
             
@@ -156,7 +138,6 @@ class Config:
             return UserRole.USER
     
     def is_admin(self, user_id: int) -> bool:
-        """Проверка, является ли пользователь администратором"""
         try:
             if isinstance(user_id, str):
                 if user_id.isdigit():
@@ -173,11 +154,9 @@ class Config:
             return False
     
     def is_admin_chat(self, chat_id: int) -> bool:
-        """Проверка, является ли чат админ-чатом"""
         return chat_id == self.config['admin_chat_id']
     
     def add_admin(self, user_id: int, role: UserRole):
-        """Добавление администратора"""
         try:
             user_id_int = int(user_id) if isinstance(user_id, str) else user_id
             
@@ -204,7 +183,6 @@ class Config:
             return False, f"Ошибка: {str(e)}"
     
     def remove_admin(self, user_id: int):
-        """Удаление администратора"""
         try:
             user_id_int = int(user_id) if isinstance(user_id, str) else user_id
             
@@ -229,7 +207,6 @@ class Config:
             return False, f"Ошибка: {str(e)}"
     
     def list_admins(self) -> Dict[str, List[int]]:
-        """Получить список всех администраторов"""
         return {
             'owner': self.config['owner_id'],
             'special_admins': self.config['special_admins'],
@@ -237,47 +214,39 @@ class Config:
         }
     
     def update_image_file(self, image_type: str, file_path: str):
-        """Обновление пути к файлу картинки"""
         if image_type in self.config['images']:
             self.config['images'][image_type] = file_path
             self.save_config()
     
     def get_image_file(self, image_type: str) -> Optional[str]:
-        """Получить путь к файлу картинки"""
         file_path = self.config['images'].get(image_type)
         if file_path and os.path.exists(file_path):
             return file_path
         return None
     
     def update_admin_chat(self, chat_id: int, chat_username: str = None):
-        """Обновление ID админ-чата и его username"""
         self.config['admin_chat_id'] = chat_id
         if chat_username:
             self.config['admin_chat_username'] = chat_username
         self.save_config()
     
     def get_admin_chat_username(self) -> Optional[str]:
-        """Получить username админ-чата"""
         return self.config.get('admin_chat_username')
     
     def get_required_channel(self) -> Dict:
-        """Получить информацию о канале для подписки"""
         return {
             'id': self.config.get('required_channel_id', REQUIRED_CHANNEL_ID),
             'username': self.config.get('required_channel_username', REQUIRED_CHANNEL_USERNAME)
         }
     
     def is_check_subscription_enabled(self) -> bool:
-        """Проверка включена ли проверка подписки"""
         return self.config.get('check_subscription', True)
     
     def set_check_subscription(self, enabled: bool):
-        """Включить/выключить проверку подписки"""
         self.config['check_subscription'] = enabled
         self.save_config()
 
 class TelegramUserAPI:
-    """Класс для работы с Telegram User API (через Telethon)"""
     def __init__(self, api_id: int, api_hash: str):
         self.api_id = api_id
         self.api_hash = api_hash
@@ -286,7 +255,6 @@ class TelegramUserAPI:
         self.is_connected = False
         
     async def connect(self):
-        """Подключиться к Telegram API"""
         try:
             print("🔌 Подключаюсь к Telegram User API...")
             if not self.is_connected:
@@ -310,7 +278,6 @@ class TelegramUserAPI:
             return False
     
     async def get_user_info(self, identifier: str):
-        """Получить информацию о пользователе по username или ID"""
         try:
             if not self.is_connected:
                 if not await self.connect():
@@ -350,7 +317,6 @@ class TelegramUserAPI:
             return None
     
     def _format_user_info(self, user: User) -> Dict:
-        """Форматировать информацию о пользователе"""
         username = user.username or ""
         
         if not username:
@@ -375,7 +341,6 @@ class TelegramUserAPI:
         }
     
     async def close(self):
-        """Закрыть соединение"""
         if self.client and self.is_connected:
             await self.client.disconnect()
             self.is_connected = False
@@ -387,7 +352,6 @@ class ScamDatabase:
         self.db = self.load_db()
     
     def load_db(self) -> Dict:
-        """Загрузка базы данных из файла"""
         if os.path.exists(self.db_file):
             try:
                 with open(self.db_file, 'r', encoding='utf-8') as f:
@@ -398,7 +362,6 @@ class ScamDatabase:
         return {}
     
     def save_db(self):
-        """Сохранение базы данных в файл"""
         try:
             with open(self.db_file, 'w', encoding='utf-8') as f:
                 json.dump(self.db, f, ensure_ascii=False, indent=2)
@@ -408,7 +371,6 @@ class ScamDatabase:
     def add_scammer(self, user_id: str, username: str, 
                    reason: str, added_by: int, chat_id: int = None,
                    country: str = None, proof_link: str = None) -> Tuple[bool, str, bool]:
-        """Добавление скамера в базу или обновление существующего"""
         try:
             if user_id.isdigit():
                 if config.is_admin(int(user_id)):
@@ -465,14 +427,12 @@ class ScamDatabase:
             return False, f"Ошибка добавления: {str(e)}", False
     
     def check_user(self, user_id: str) -> Optional[Dict]:
-        """Проверка пользователя в базе"""
         user_data = self.db.get(user_id)
         if user_data and user_data.get('status') == 'active':
             return user_data
         return None
     
     def find_scammer_by_username(self, username: str) -> Optional[Dict]:
-        """Поиск скамера по username (с @ или без)"""
         clean_username = username.replace('@', '').lower()
         
         for user_id, info in self.db.items():
@@ -485,7 +445,6 @@ class ScamDatabase:
         return None
     
     def remove_scammer(self, user_id: str) -> bool:
-        """Удаление скамера из базы"""
         if user_id in self.db:
             self.db[user_id]['status'] = 'removed'
             self.db[user_id]['removed_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -494,7 +453,6 @@ class ScamDatabase:
         return False
     
     def permanently_delete_scammer(self, user_id: str) -> bool:
-        """Полное удаление скамера из базы"""
         if user_id in self.db:
             del self.db[user_id]
             self.save_db()
@@ -502,19 +460,16 @@ class ScamDatabase:
         return False
     
     def increment_reports(self, user_id: str):
-        """Увеличение счетчика жалоб"""
         if user_id in self.db:
             self.db[user_id]['reports'] = self.db[user_id].get('reports', 0) + 1
             self.save_db()
     
     def set_country(self, user_id: str, country: str):
-        """Установка страны для скамера"""
         if user_id in self.db:
             self.db[user_id]['country'] = country
             self.save_db()
     
     def get_stats(self) -> Dict:
-        """Получение статистики"""
         active_scammers = [u for u in self.db.values() if u.get('status') == 'active']
         total_scammers = len(active_scammers)
         total_reports = sum(user.get('reports', 0) for user in active_scammers)
@@ -528,27 +483,22 @@ class ScamDatabase:
         }
     
     def search_by_country(self, country: str) -> List[Dict]:
-        """Поиск скамеров по стране"""
         return [user for user in self.db.values() 
                 if user.get('country', '').lower() == country.lower() 
                 and user.get('status') == 'active']
     
     def get_recent_scammers(self, limit: int = 10) -> List[Dict]:
-        """Получение последних добавленных скамеров"""
         active_scammers = [u for u in self.db.values() if u.get('status') == 'active']
         sorted_scammers = sorted(active_scammers, 
                                 key=lambda x: x.get('added_date', ''), 
                                 reverse=True)
         return sorted_scammers[:limit]
 
-# Инициализация
 config = Config()
 db = ScamDatabase()
 telegram_api = None
 
-# Проверка прав
 def has_permission(user_id: int, required_role: UserRole) -> bool:
-    """Проверка наличия прав у пользователя"""
     user_role = config.get_user_role(user_id)
     
     role_hierarchy = {
@@ -561,7 +511,6 @@ def has_permission(user_id: int, required_role: UserRole) -> bool:
     return role_hierarchy[user_role] >= role_hierarchy[required_role]
 
 def can_add_scammer(user_id: int, chat_id: int) -> bool:
-    """Проверка, может ли пользователь добавлять скамеров в данном чате"""
     user_role = config.get_user_role(user_id)
     
     if user_role == UserRole.OWNER:
@@ -573,13 +522,10 @@ def can_add_scammer(user_id: int, chat_id: int) -> bool:
     return False
 
 async def check_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Проверка подписки пользователя на канал"""
     try:
-        # Если проверка подписки отключена - пропускаем
         if not config.is_check_subscription_enabled():
             return True
             
-        # Админы и владелец не проверяются
         if config.is_admin(user_id):
             return True
             
@@ -587,10 +533,8 @@ async def check_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -
         channel_id = channel_info['id']
         
         try:
-            # Пытаемся получить статус подписки
             chat_member = await context.bot.get_chat_member(chat_id=channel_id, user_id=user_id)
             
-            # Проверяем статусы, которые означают подписку
             if chat_member.status in ['member', 'administrator', 'creator', 'owner']:
                 return True
             else:
@@ -598,7 +542,6 @@ async def check_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -
                 
         except Exception as e:
             logger.error(f"Ошибка проверки подписки пользователя {user_id}: {e}")
-            # Если не удалось проверить, пропускаем (на всякий случай)
             return True
             
     except Exception as e:
@@ -606,10 +549,8 @@ async def check_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -
         return True
 
 async def require_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Проверка подписки перед выполнением команды"""
     user_id = update.effective_user.id
     
-    # Проверяем подписку
     is_subscribed = await check_subscription(user_id, context)
     
     if not is_subscribed:
@@ -638,14 +579,12 @@ async def require_subscription(update: Update, context: ContextTypes.DEFAULT_TYP
     return True
 
 async def check_subscription_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик кнопки проверки подписки"""
     query = update.callback_query
     await query.answer()
     
     user_id = query.from_user.id
     
     if query.data == "check_subscription":
-        # Проверяем подписку еще раз
         is_subscribed = await check_subscription(user_id, context)
         
         if is_subscribed:
@@ -659,7 +598,6 @@ async def check_subscription_button(update: Update, context: ContextTypes.DEFAUL
             await query.answer("❌ Вы еще не подписались на канал!", show_alert=True)
 
 def get_admin_role_text(user_id: int) -> str:
-    """Получить текст роли администратора"""
     user_role = config.get_user_role(user_id)
     
     if user_role == UserRole.OWNER:
@@ -672,7 +610,6 @@ def get_admin_role_text(user_id: int) -> str:
         return "👤 ПОЛЬЗОВАТЕЛЬ"
 
 def get_scam_chance_for_user(user_id: str, is_admin: bool = False, is_scammer: bool = False) -> int:
-    """Получить процент скама для пользователя"""
     if is_scammer:
         return 100
     elif is_admin:
@@ -681,10 +618,6 @@ def get_scam_chance_for_user(user_id: str, is_admin: bool = False, is_scammer: b
         return random.randint(1, 10)
 
 def get_scammer_info(user_identifier: str) -> Tuple[Optional[Dict], bool, bool]:
-    """
-    Найти информацию о скамере по username или ID
-    Возвращает: (инфо_о_скамере, найден_ли_по_username, найден_ли_по_id)
-    """
     clean_identifier = user_identifier.replace('@', '')
     
     found_by_id = False
@@ -702,23 +635,19 @@ def get_scammer_info(user_identifier: str) -> Tuple[Optional[Dict], bool, bool]:
     return None, False, False
 
 async def get_user_info_from_tg(identifier: str) -> Tuple[Optional[str], Optional[str]]:
-    """Получить ID и username пользователя из Telegram через User API"""
     try:
         clean_identifier = identifier.replace('@', '').strip()
         
         logger.info(f"Получение информации для идентификатора: {clean_identifier}")
         
-        # Если это числовой ID
         if clean_identifier.isdigit():
             user_id = clean_identifier
             
-            # Сначала проверяем в базе данных
             scammer_info = db.check_user(user_id)
             if scammer_info:
                 logger.info(f"Найден в базе по ID: {user_id}")
                 return scammer_info['user_id'], scammer_info['username']
             
-            # Пробуем получить информацию через Telegram API
             if telegram_api is not None and telegram_api.is_connected:
                 try:
                     user_info = await telegram_api.get_user_info(user_id)
@@ -729,19 +658,15 @@ async def get_user_info_from_tg(identifier: str) -> Tuple[Optional[str], Optiona
                 except Exception as e:
                     logger.debug(f"Не удалось получить информацию по ID {user_id} из API: {e}")
             
-            # Если не удалось получить информацию из API или API недоступен
             logger.info(f"Возвращаем ID как есть: {user_id}")
             return user_id, f"id{user_id}"
         
-        # Если это не числовой ID (username или что-то еще)
         else:
-            # Сначала проверяем по username в базе
             scammer_info = db.find_scammer_by_username(clean_identifier)
             if scammer_info:
                 logger.info(f"Найден в базе по username: {clean_identifier}")
                 return scammer_info['user_id'], scammer_info['username']
             
-            # Пробуем получить информацию через Telegram API
             if telegram_api is not None and telegram_api.is_connected:
                 try:
                     user_info = await telegram_api.get_user_info(clean_identifier)
@@ -753,7 +678,6 @@ async def get_user_info_from_tg(identifier: str) -> Tuple[Optional[str], Optiona
                 except Exception as e:
                     logger.debug(f"Не удалось получить информацию по username {clean_identifier} из API: {e}")
             
-            # Если не удалось получить информацию
             logger.info(f"Не удалось получить информацию для: {clean_identifier}")
             return None, clean_identifier
         
@@ -763,7 +687,6 @@ async def get_user_info_from_tg(identifier: str) -> Tuple[Optional[str], Optiona
         return None, identifier
 
 def create_proof_link(chat_id: int, message_id: int) -> str:
-    """Создать корректную ссылку на сообщение в Telegram"""
     try:
         chat_username = config.get_admin_chat_username()
         
@@ -785,10 +708,7 @@ def create_proof_link(chat_id: int, message_id: int) -> str:
         logger.error(f"Ошибка создания ссылки: {e}")
         return f"https://t.me/c/{abs(chat_id)}/{message_id}"
 
-# ====== КОМАНДЫ ДЛЯ УПРАВЛЕНИЯ АДМИНАМИ ======
-
 async def add_admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Добавить администратора"""
     try:
         user_id = update.effective_user.id
         
@@ -849,7 +769,6 @@ async def add_admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
 
 async def add_special_admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Добавить спец-администратора"""
     try:
         user_id = update.effective_user.id
         
@@ -906,7 +825,6 @@ async def add_special_admin_command(update: Update, context: ContextTypes.DEFAUL
         await update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
 
 async def remove_admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Удалить администратора"""
     try:
         user_id = update.effective_user.id
         
@@ -949,7 +867,6 @@ async def remove_admin_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
 
 async def list_admins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать список администраторов"""
     try:
         user_id = update.effective_user.id
         
@@ -989,10 +906,7 @@ async def list_admins_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.error(f"Ошибка в команде /listadmins: {e}", exc_info=True)
         await update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
 
-# ====== КОМАНДА ДОБАВЛЕНИЯ СКАМЕРА ======
-
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /add - только в админ-чате"""
     try:
         chat_id = update.effective_chat.id
         user_id = update.effective_user.id
@@ -1150,8 +1064,6 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Произошла ошибка при добавлении. Попробуйте позже.")
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /start с кнопочным меню"""
-    # Проверяем подписку
     is_subscribed = await require_subscription(update, context)
     if not is_subscribed:
         return
@@ -1159,10 +1071,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_role = config.get_user_role(user_id)
     
-    # Создаем кнопки в зависимости от роли пользователя
     keyboard = []
     
-    # Основные команды (видны всем)
     keyboard.append([
         InlineKeyboardButton("🔍 Проверить пользователя", callback_data="menu_check"),
         InlineKeyboardButton("👤 Проверить себя", callback_data="menu_checkme")
@@ -1173,19 +1083,16 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         InlineKeyboardButton("📚 Помощь", callback_data="menu_help")
     ])
     
-    # Кнопка для админов и выше
     if user_role in [UserRole.ADMIN, UserRole.SPECIAL_ADMIN, UserRole.OWNER]:
         keyboard.append([
             InlineKeyboardButton("👮 Администраторы", callback_data="menu_admins")
         ])
     
-    # Кнопка для спец-админов и выше
     if user_role in [UserRole.SPECIAL_ADMIN, UserRole.OWNER]:
         keyboard.append([
             InlineKeyboardButton("🛡️ Спец-администраторы", callback_data="menu_special_admins")
         ])
     
-    # Кнопка для владельца
     if user_role == UserRole.OWNER:
         keyboard.append([
             InlineKeyboardButton("👑 Владелец", callback_data="menu_owner")
@@ -1210,10 +1117,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(welcome_text, parse_mode='Markdown', reply_markup=reply_markup)
 
-# ====== МЕНЮ КОМАНД ======
-
 async def show_basic_commands_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать меню основных команд"""
     query = update.callback_query
     await query.answer()
     
@@ -1237,7 +1141,6 @@ async def show_basic_commands_menu(update: Update, context: ContextTypes.DEFAULT
     await query.message.reply_text(commands_text, parse_mode='Markdown')
 
 async def show_admin_commands_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать меню команд для админов"""
     query = update.callback_query
     await query.answer()
     
@@ -1266,7 +1169,6 @@ async def show_admin_commands_menu(update: Update, context: ContextTypes.DEFAULT
     await query.message.reply_text(commands_text, parse_mode='Markdown')
 
 async def show_special_admin_commands_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать меню команд для спец-админов"""
     query = update.callback_query
     await query.answer()
     
@@ -1298,7 +1200,6 @@ async def show_special_admin_commands_menu(update: Update, context: ContextTypes
     await query.message.reply_text(commands_text, parse_mode='Markdown')
 
 async def show_owner_commands_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать меню команд для владельца"""
     query = update.callback_query
     await query.answer()
     
@@ -1340,8 +1241,6 @@ async def show_owner_commands_menu(update: Update, context: ContextTypes.DEFAULT
     await query.message.reply_text(commands_text, parse_mode='Markdown')
 
 async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /check - работает везде"""
-    # Проверяем подписку
     is_subscribed = await require_subscription(update, context)
     if not is_subscribed:
         return
@@ -1375,7 +1274,6 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         logger.info(f"Результат поиска для {user_identifier}: id={real_user_id}, username={real_username}")
         
-        # Определяем, что показывать пользователю
         if real_user_id:
             display_user_id = real_user_id
             if real_username:
@@ -1386,29 +1284,23 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             display_user_id = user_identifier
             display_username = user_identifier
         
-        # Проверяем, является ли пользователь скамером
         scammer_info = None
         is_admin_user = False
         
         if real_user_id:
-            # Проверяем в базе по ID
             scammer_info = db.check_user(real_user_id)
             
-            # Проверяем, является ли администратором
             if real_user_id.isdigit():
                 is_admin_user = config.is_admin(int(real_user_id))
         
-        # Если не нашли по ID, проверяем по username
         if not scammer_info and real_username:
             scammer_info = db.find_scammer_by_username(real_username)
         
-        # Форматируем username для отображения
         if display_username and not display_username.startswith('@'):
             username_display_formatted = f"@{display_username}"
         else:
             username_display_formatted = display_username
         
-        # Определяем статус пользователя
         if scammer_info:
             image_file = config.get_image_file("scammer_found")
             status_emoji = "🔴"
@@ -1439,7 +1331,6 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await searching_msg.delete()
         
-        # Создаем ответ
         response = f"""
 {status_emoji} /check {username_display_formatted}  
 👤 {username_display_formatted} [{user_id_display}]  
@@ -1458,7 +1349,6 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not scammer_info and not is_admin_user:
             response += "\n*НЕТ В БАЗЕ*"
         
-        # Создаем клавиатуру
         keyboard = [
             [
                 InlineKeyboardButton("📋 Профиль", callback_data=f"profile_{user_id_display if scammer_info else 'none'}"),
@@ -1471,7 +1361,6 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         ]
         
-        # Кнопка "Удалить из базы" показывается только спец-админам и владельцу
         if scammer_info and has_permission(update.effective_user.id, UserRole.SPECIAL_ADMIN):
             keyboard.append([
                 InlineKeyboardButton("🗑️ Удалить из базы", callback_data=f"remove_{scammer_info['user_id']}")
@@ -1479,7 +1368,6 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Отправляем ответ
         try:
             if image_file and os.path.exists(image_file):
                 with open(image_file, 'rb') as photo:
@@ -1500,8 +1388,6 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Произошла ошибка при проверке. Попробуйте позже.")
 
 async def checkme_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /checkme"""
-    # Проверяем подписку
     is_subscribed = await require_subscription(update, context)
     if not is_subscribed:
         return
@@ -1557,7 +1443,6 @@ async def checkme_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {datetime.now().strftime('%d %B %Y')} | 🔒 {reports} | @{BOT_USERNAME}
         """
         
-        # Создаем клавиатуру
         keyboard = [
             [
                 InlineKeyboardButton("📋 Профиль", callback_data=f"profile_{user_id if scammer_info else 'none'}"),
@@ -1570,7 +1455,6 @@ async def checkme_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         ]
         
-        # Кнопка "Удалить из базы" показывается только спец-админам и владельцу
         if scammer_info and has_permission(update.effective_user.id, UserRole.SPECIAL_ADMIN):
             keyboard.append([
                 InlineKeyboardButton("🗑️ Удалить из базы", callback_data=f"remove_{scammer_info['user_id']}")
@@ -1598,8 +1482,6 @@ async def checkme_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Произошла ошибка при проверке. Попробуйте позже.")
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /stats"""
-    # Проверяем подписку
     is_subscribed = await require_subscription(update, context)
     if not is_subscribed:
         return
@@ -1624,8 +1506,6 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(stats_text, parse_mode='Markdown')
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /help"""
-    # Проверяем подписку
     is_subscribed = await require_subscription(update, context)
     if not is_subscribed:
         return
@@ -1646,9 +1526,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
-# Функции для работы с кнопками
 async def show_profile(query, scammer_id: str):
-    """Показать подробный профиль скамера"""
     try:
         scammer_info = db.check_user(scammer_id)
         if not scammer_info:
@@ -1695,7 +1573,6 @@ async def show_profile(query, scammer_id: str):
         await query.message.reply_text("❌ Ошибка при загрузке профиля.")
 
 async def set_country_dialog(query, scammer_id: str):
-    """Диалог установки страны"""
     keyboard = [
         [
             InlineKeyboardButton("🇷🇺 Россия", callback_data=f"country_{scammer_id}_RU"),
@@ -1727,7 +1604,6 @@ async def set_country_dialog(query, scammer_id: str):
     )
 
 async def remove_scammer_dialog(query, user_id: int, scammer_id: str):
-    """Диалог удаления скамера из базы"""
     if not has_permission(user_id, UserRole.SPECIAL_ADMIN):
         await query.answer("❌ У вас нет прав для удаления скамеров!", show_alert=True)
         return
@@ -1761,7 +1637,6 @@ async def remove_scammer_dialog(query, user_id: int, scammer_id: str):
     )
 
 async def save_photo_to_file(context: ContextTypes.DEFAULT_TYPE, photo: PhotoSize, image_type: str) -> Optional[str]:
-    """Сохранить фото из сообщения в файл"""
     try:
         file = await context.bot.get_file(photo.file_id)
         
@@ -1781,7 +1656,6 @@ async def save_photo_to_file(context: ContextTypes.DEFAULT_TYPE, photo: PhotoSiz
         return None
 
 async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик для загрузки картинок с тегами"""
     try:
         user_id = update.effective_user.id
         
@@ -1828,7 +1702,6 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("❌ Ошибка при обработке фото!")
 
 async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик нажатий на кнопки"""
     query = update.callback_query
     await query.answer()
     
@@ -1919,7 +1792,6 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
     elif data == "check_subscription":
         await check_subscription_button(update, context)
     
-    # Обработка меню
     elif data == "menu_check":
         await query.message.reply_text(
             "🔍 *Проверка пользователя:*\n\n"
@@ -1964,7 +1836,6 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
         await query.message.reply_text("❌ Неизвестная команда кнопки.")
 
 async def help_command_menu(query):
-    """Показать меню помощи"""
     help_text = """
 📚 *Помощь по боту:*
 
@@ -1973,7 +1844,6 @@ async def help_command_menu(query):
     await query.message.reply_text(help_text, parse_mode='Markdown')
 
 async def set_admin_chat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда для установки админ-чата (только владелец)"""
     try:
         user_id = update.effective_user.id
         
@@ -2001,7 +1871,6 @@ async def set_admin_chat_command(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
 
 async def toggle_subscription_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Включить/выключить проверку подписки (только владелец)"""
     try:
         user_id = update.effective_user.id
         
@@ -2036,7 +1905,6 @@ async def toggle_subscription_command(update: Update, context: ContextTypes.DEFA
         await update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
 
 async def set_channel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Установить канал для обязательной подписки (только владелец)"""
     try:
         user_id = update.effective_user.id
         
@@ -2056,7 +1924,6 @@ async def set_channel_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         channel_identifier = context.args[0]
         
-        # Если это username
         if channel_identifier.startswith('@'):
             channel_username = channel_identifier
             channel_id = None
@@ -2071,7 +1938,6 @@ async def set_channel_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                 parse_mode='Markdown'
             )
             
-        # Если это ID
         elif channel_identifier.startswith('-100') and channel_identifier[4:].isdigit():
             channel_id = int(channel_identifier)
             config.config['required_channel_id'] = channel_id
@@ -2097,7 +1963,6 @@ async def set_channel_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
 
 async def get_channel_id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Получить ID текущего чата/канала"""
     try:
         chat_id = update.effective_chat.id
         chat_title = update.effective_chat.title or "Без названия"
@@ -2119,7 +1984,6 @@ async def get_channel_id_command(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
 
 async def set_channel_id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Установить ID канала для подписки"""
     try:
         user_id = update.effective_user.id
         
@@ -2169,7 +2033,6 @@ async def set_channel_id_command(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик ошибок"""
     logger.error(f"Ошибка: {context.error}", exc_info=True)
     if update and update.message:
         try:
@@ -2178,7 +2041,6 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
 async def init_telegram_api():
-    """Инициализация Telegram User API"""
     global telegram_api
     try:
         print("🔌 Инициализация Telegram User API...")
@@ -2234,38 +2096,23 @@ async def main():
         
         print("\n📋 Регистрация обработчиков команд...")
         
-        # Основные команды (с проверкой подписки)
         application.add_handler(CommandHandler("start", start_command))
         application.add_handler(CommandHandler("help", help_command))
         application.add_handler(CommandHandler("check", check_command))
         application.add_handler(CommandHandler("checkme", checkme_command))
         application.add_handler(CommandHandler("stats", stats_command))
-        
-        # Команды для админов (в админ-чате)
         application.add_handler(CommandHandler("add", add_command))
-        
-        # Команды для управления админами
         application.add_handler(CommandHandler("addadmin", add_admin_command))
         application.add_handler(CommandHandler("addspecial", add_special_admin_command))
         application.add_handler(CommandHandler("removeadmin", remove_admin_command))
         application.add_handler(CommandHandler("listadmins", list_admins_command))
-        
-        # Команда для установки админ-чата
         application.add_handler(CommandHandler("setadminchat", set_admin_chat_command))
-        
-        # Команды для управления подпиской
         application.add_handler(CommandHandler("togglesubscription", toggle_subscription_command))
         application.add_handler(CommandHandler("setchannel", set_channel_command))
         application.add_handler(CommandHandler("getchannelid", get_channel_id_command))
         application.add_handler(CommandHandler("setchannelid", set_channel_id_command))
-        
-        # Обработчик для фото с тегами (только для владельца)
         application.add_handler(MessageHandler(filters.PHOTO & filters.CaptionRegex(r'#(scammer|clean|warning|admin)'), handle_photo_message))
-        
-        # Обработчик нажатий на кнопки
         application.add_handler(CallbackQueryHandler(button_callback_handler))
-        
-        # Регистрируем обработчик ошибок
         application.add_error_handler(error_handler)
         print("✅ Все обработчики зарегистрированы")
         
@@ -2298,30 +2145,25 @@ async def main():
         print(f"{'='*50}")
         print("📡 Ожидание команд...")
         
-        # 🎯 ЗАПУСКАЕМ POLLING
         print("\n🔄 Запускаю polling...")
         
         try:
-            # Удаляем webhook если есть
-            try:
-                await application.bot.delete_webhook(drop_pending_updates=True)
-                print("✅ Webhook удален")
-            except:
-                pass
-            
-            # Запускаем polling
-            await application.run_polling(
-                allowed_updates=Update.ALL_TYPES,
-                drop_pending_updates=True,
-                poll_interval=0.5,
-                close_loop=False
-            )
-            
-        except asyncio.CancelledError:
-            print("\n🛑 Получен сигнал остановки...")
-        except KeyboardInterrupt:
-            print("\n🛑 Получен KeyboardInterrupt...")
+            await application.bot.delete_webhook(drop_pending_updates=True)
+            print("✅ Webhook удален")
+        except:
+            pass
         
+        await application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+            poll_interval=0.5,
+            close_loop=False
+        )
+        
+    except asyncio.CancelledError:
+        print("\n🛑 Получен сигнал остановки...")
+    except KeyboardInterrupt:
+        print("\n🛑 Получен KeyboardInterrupt...")
     except Exception as e:
         print(f"\n❌ КРИТИЧЕСКАЯ ОШИБКА: {e}")
         import traceback
@@ -2332,11 +2174,11 @@ async def main():
         
         print("\n⏳ Завершение работы...")
         raise
-        if __name__ == '__main__':
+
+if __name__ == '__main__':
     print("🤖 Запуск AntiScamBase Bot...")
     
     try:
-        # Просто запускаем main
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\n🛑 Бот остановлен")
