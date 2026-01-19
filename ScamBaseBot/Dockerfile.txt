@@ -2,19 +2,16 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Копируем зависимости
-COPY requirements.txt .
-
-# Устанавливаем Python зависимости
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-# Копируем код бота
+# Копируем ВЕСЬ ваш код
 COPY . .
 
-# Создаем необходимые папки
+# Устанавливаем все зависимости
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir python-telegram-bot==20.7 telethon==1.34.0
+
+# Создаем папки
 RUN mkdir -p /app/data /app/bot_images && \
     chmod 777 /app/data /app/bot_images
 
-# Запускаем бота
-CMD ["python", "bot.py"]
+# Запускаем
+CMD ["python", "ScamBaseBot/bot.py"]
