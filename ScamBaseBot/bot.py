@@ -2299,35 +2299,27 @@ async def main():
         print("📡 Ожидание команд...")
         
         # 🔴 НЕ используем application.run_polling()
-        # Вместо этого запускаем polling вручную
+              # ✅ Запускаем polling с правильными параметрами для хостинга
+        print("\n🔄 Запускаю polling...")
         
-        print("\n🔄 Запускаю polling вручную...")
-        
-        # Инициализируем приложение
-        await application.initialize()
-        
-        # Запускаем приложение
-        await application.start()
-        
-        print("✅ Polling запущен вручную")
-        print("🤖 Бот готов к работе!")
-        
-        # Бесконечный цикл для поддержания работы
+        # Сначала проверяем и удаляем webhook если есть
         try:
-            while True:
-                await asyncio.sleep(3600)  # Спим 1 час
-        except asyncio.CancelledError:
-            print("\n🛑 Получен сигнал остановки...")
-        finally:
-            # Останавливаем приложение
-            await application.stop()
-            await application.shutdown()
-            
-            if telegram_api and telegram_api.is_connected:
-                await telegram_api.close()
-            
-            print("✅ Бот корректно остановлен")
+            webhook_info = await application.bot.get_webhook_info()
+            if webhook_info.url:
+                print(f"⚠️ Обнаружен webhook: {webhook_info.url}")
+                await application.bot.delete_webhook()
+                print("✅ Webhook удален")
+        except Exception as e:
+            print(f"⚠️ Ошибка проверки webhook: {e}")
         
+        # Запускаем polling
+        await application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            close_loop=False,  # НЕ закрываем event loop
+            drop_pending_updates=True,
+            poll_interval=0.5,  # Быстрый опрос
+            timeout=30
+        )
     except Exception as e:
         print(f"\n❌ КРИТИЧЕСКАЯ ОШИБКА ПРИ ЗАПУСКЕ БОТА: {e}")
         import traceback
@@ -2389,3 +2381,4 @@ def run_bot():
 
 if __name__ == '__main__':
     run_bot()
+
