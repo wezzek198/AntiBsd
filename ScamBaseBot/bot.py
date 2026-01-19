@@ -2302,47 +2302,36 @@ async def main():
         print(f"{'='*50}")
         print("📡 Ожидание команд...")
         # 🎯 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Запускаем polling в отдельном потоке
-        import threading
+         print("\n🔄 Запускаю polling...")
         
-        def run_polling():
-            """Запуск polling в отдельном потоке"""
-            try:
-                # Создаем новый event loop для этого потока
-                import asyncio as async_module
-                loop = async_module.new_event_loop()
-                async_module.set_event_loop(loop)
-                
-                # Сначала удаляем webhook
-                try:
-                    loop.run_until_complete(application.bot.delete_webhook(drop_pending_updates=True))
-                    print("✅ Webhook удален (в потоке)")
-                except:
-                    pass
-                
-                # Запускаем polling
-                loop.run_until_complete(
-                    application.run_polling(
-                        allowed_updates=Update.ALL_TYPES,
-                        drop_pending_updates=True,
-                        poll_interval=0.5,
-                        close_loop=True  # Закрываем loop в этом потоке
-                    )
-                )
-            except Exception as e:
-                print(f"❌ Ошибка в потоке polling: {e}")
-        
-        print("\n🔄 Запускаю polling в отдельном потоке...")
-        polling_thread = threading.Thread(target=run_polling, daemon=True)
-        polling_thread.start()
-        print("✅ Polling запущен в потоке")
-        
-        # ⏳ Удерживаем основной поток
         try:
-            import time
-            while True:
-                time.sleep(1)
+            # Удаляем webhook если есть
+            try:
+                await application.bot.delete_webhook(drop_pending_updates=True)
+                print("✅ Webhook удален")
+            except:
+                pass
+            
+            # Запускаем polling в отдельной задаче
+            polling_task = asyncio.create_task(
+                application.run_polling(
+                    allowed_updates=Update.ALL_TYPES,
+                    drop_pending_updates=True,
+                    poll_interval=0.5,
+                    close_loop=False
+                )
+            )
+            
+            print("✅ Бот запущен и работает!")
+            print("🤖 Отправьте /start в ЛС бота для проверки")
+            
+            # Ждем завершения polling (никогда не завершится)
+            await polling_task
+            
+        except asyncio.CancelledError:
+            print("\n🛑 Получен сигнал остановки...")
         except KeyboardInterrupt:
-            print("\n🛑 Останавливаю бота...")
+            print("\n🛑 Получен KeyboardInterrupt...")
         
     except Exception as e:
         print(f"\n❌ КРИТИЧЕСКАЯ ОШИБКА: {e}")
@@ -2354,18 +2343,3 @@ async def main():
         
         print("\n⏳ Завершение работы...")
         raise
-
-
-if __name__ == '__main__':
-    print("🤖 Запуск AntiScamBase Bot...")
-    
-    try:
-        # Просто запускаем main
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n🛑 Бот остановлен")
-    except Exception as e:
-        print(f"❌ Ошибка: {e}")
-        import traceback
-        traceback.print_exc()
-
