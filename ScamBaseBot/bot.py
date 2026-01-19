@@ -48,9 +48,9 @@ ADMIN_CHAT_ID = -1003660247060  # ID админ-чата
 # Username бота для отображения в сообщениях
 BOT_USERNAME = "wzkbScamBaseBot"
 
-TOKEN = "7765119641:AAEGPtZsikzMSK8UAbsbFWwBXnXmWDxudOU"
-TELEGRAM_API_ID = 38088481
-TELEGRAM_API_HASH = "69dc6648ef1196a685570a4bede5795f"
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID", 0))
+TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH", "")
 # Канал для обязательной подписки
 REQUIRED_CHANNEL_ID = -1002129588192  # ID канала для подписки
 REQUIRED_CHANNEL_USERNAME = "@wzkbnews"  # Username канала
@@ -2306,4 +2306,5 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"\n❌ Непредвиденная ошибка: {e}")
         logger.error(f"Непредвиденная ошибка: {e}", exc_info=True)
+
         sys.exit(1)
