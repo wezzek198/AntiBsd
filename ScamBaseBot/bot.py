@@ -1,6 +1,3 @@
-import nest_asyncio
-nest_asyncio.apply()
-
 import logging
 import json
 import os
@@ -2308,3 +2305,4 @@ if __name__ == '__main__':
         logger.error(f"Непредвиденная ошибка: {e}", exc_info=True)
 
         sys.exit(1)
+
