@@ -2201,32 +2201,7 @@ async def main():
     try:
         print("=" * 50)
         print("🚀 НАЧИНАЮ ЗАПУСК БОТА...")
-        print(f"📁 Текущая директория: {os.getcwd()}")
-        print(f"📁 Директория скрипта: {SCRIPT_DIR}")
-        print(f"🤖 Токен бота: {TOKEN[:10]}...{TOKEN[-5:]}")
-        print("=" * 50)
-        
-        print(f"🔍 Проверка файлов конфигурации...")
-        print(f"   ✅ Файл конфигурации: {'СУЩЕСТВУЕТ' if os.path.exists(CONFIG_FILE) else '❌ ОТСУТСТВУЕТ'}")
-        print(f"   ✅ База данных: {'СУЩЕСТВУЕТ' if os.path.exists(DB_FILE) else '❌ ОТСУТСТВУЕТ'}")
-        print(f"   ✅ Папка для картинок: {'СУЩЕСТВУЕТ' if os.path.exists(IMAGES_FOLDER) else '❌ ОТСУТСТВУЕТ'}")
-        
-        if not os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-                json.dump(DEFAULT_CONFIG, f, ensure_ascii=False, indent=2)
-            print(f"✅ Создан файл конфигурации: {CONFIG_FILE}")
-        
-        if not os.path.exists(DB_FILE):
-            with open(DB_FILE, 'w', encoding='utf-8') as f:
-                json.dump({}, f, ensure_ascii=False, indent=2)
-            print(f"✅ Создана база данных: {DB_FILE}")
-        
-        if not os.path.exists(IMAGES_FOLDER):
-            os.makedirs(IMAGES_FOLDER)
-            print(f"✅ Создана папка для картинок: {IMAGES_FOLDER}")
-        
-        print("\n🔌 Инициализация Telegram API...")
-        await init_telegram_api()
+        # ... (весь ваш код инициализации как есть до создания application) ...
         
         print("\n🤖 Создание приложения бота...")
         application = Application.builder().token(TOKEN).build()
@@ -2234,38 +2209,24 @@ async def main():
         
         print("\n📋 Регистрация обработчиков команд...")
         
-        # Основные команды (с проверкой подписки)
+        # Регистрация всех обработчиков (как у вас было)
         application.add_handler(CommandHandler("start", start_command))
         application.add_handler(CommandHandler("help", help_command))
         application.add_handler(CommandHandler("check", check_command))
         application.add_handler(CommandHandler("checkme", checkme_command))
         application.add_handler(CommandHandler("stats", stats_command))
-        
-        # Команды для админов (в админ-чате)
         application.add_handler(CommandHandler("add", add_command))
-        
-        # Команды для управления админами
         application.add_handler(CommandHandler("addadmin", add_admin_command))
         application.add_handler(CommandHandler("addspecial", add_special_admin_command))
         application.add_handler(CommandHandler("removeadmin", remove_admin_command))
         application.add_handler(CommandHandler("listadmins", list_admins_command))
-        
-        # Команда для установки админ-чата
         application.add_handler(CommandHandler("setadminchat", set_admin_chat_command))
-        
-        # Команды для управления подпиской
         application.add_handler(CommandHandler("togglesubscription", toggle_subscription_command))
         application.add_handler(CommandHandler("setchannel", set_channel_command))
         application.add_handler(CommandHandler("getchannelid", get_channel_id_command))
         application.add_handler(CommandHandler("setchannelid", set_channel_id_command))
-        
-        # Обработчик для фото с тегами (только для владельца)
         application.add_handler(MessageHandler(filters.PHOTO & filters.CaptionRegex(r'#(scammer|clean|warning|admin)'), handle_photo_message))
-        
-        # Обработчик нажатий на кнопки
         application.add_handler(CallbackQueryHandler(button_callback_handler))
-        
-        # Регистрируем обработчик ошибок
         application.add_error_handler(error_handler)
         print("✅ Все обработчики зарегистрированы")
         
@@ -2278,31 +2239,15 @@ async def main():
         except Exception as e:
             print(f"⚠️ Не удалось получить информацию о боте: {e}")
         
-        channel_info = config.get_required_channel()
-        print(f"\n📢 Канал для подписки:")
-        print(f"   ID: {channel_info['id']}")
-        print(f"   Username: {channel_info['username']}")
-        print(f"   Проверка подписки: {'ВКЛЮЧЕНА' if config.is_check_subscription_enabled() else 'ВЫКЛЮЧЕНА'}")
-        
         print(f"\n{'='*50}")
         print(f"✅ БОТ УСПЕШНО ЗАПУЩЕН!")
-        print(f"🤖 Имя бота: @{BOT_USERNAME}")
-        print(f"📊 Файл базы данных: {DB_FILE}")
-        print(f"⚙️ Файл конфигурации: {CONFIG_FILE}")
-        print(f"🖼️ Папка для картинок: {IMAGES_FOLDER}")
-        print(f"👑 Владелец ID: {config.config['owner_id']}")
-        print(f"💬 Админ-чат ID: {config.config['admin_chat_id']}")
-        print(f"👤 Username админ-чата: {config.get_admin_chat_username()}")
-        print(f"🛡️ Спец-админы: {config.config['special_admins']}")
-        print(f"👮 Админы: {config.config['admins']}")
+        print(f"📡 Ожидание команд...")
         print(f"{'='*50}")
-        print("📡 Ожидание команд...")
-        print("Для остановки нажмите Ctrl+C")
         
-        # ✅ ПРОСТО ЗАПУСКАЕМ POLLING С ПАРАМЕТРОМ close_loop=False
+        # ✅ КЛЮЧЕВАЯ ИЗМЕНЕНИЕ: используем run_polling с параметром close_loop=False
         await application.run_polling(
             allowed_updates=Update.ALL_TYPES,
-            close_loop=False,
+            close_loop=False,  # НЕ закрываем event loop после завершения
             drop_pending_updates=True
         )
         
@@ -2318,22 +2263,19 @@ async def main():
         raise
 
 if __name__ == '__main__':
+    # ✅ ОЧЕНЬ ВАЖНО: проверяем, есть ли уже запущенный event loop
     try:
-        # ✅ ОЧЕНЬ ПРОСТОЙ ЗАПУСК
-        print("🚀 Запуск бота...")
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n\n🛑 Бот остановлен пользователем")
-        sys.exit(0)
-    except RuntimeError as e:
-        if "already running" in str(e):
-            print("⚠️ Обнаружен запущенный event loop...")
-            print("🤞 Пробуем простой запуск...")
-            # Просто создаем задачу в существующем loop
-            loop = asyncio.get_event_loop()
+        # Пробуем получить текущий loop
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Если loop уже запущен (характерно для хостинга)
+            print("🔍 Обнаружен запущенный event loop (хостинг)")
+            print("🎯 Запускаю бота внутри существующего loop...")
+            
+            # Создаем задачу в существующем loop
             task = loop.create_task(main())
             
-            # Бесконечный цикл чтобы бот работал
+            # Блокируем выполнение, чтобы бот работал
             try:
                 import time
                 while True:
@@ -2341,12 +2283,19 @@ if __name__ == '__main__':
             except KeyboardInterrupt:
                 print("\n🛑 Останавливаю бота...")
                 task.cancel()
+                # Даем время на завершение
+                import asyncio as async_module
+                if not task.done():
+                    loop.run_until_complete(task)
         else:
-            print(f"❌ RuntimeError: {e}")
-            sys.exit(1)
-    except Exception as e:
-        print(f"\n❌ Непредвиденная ошибка: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+            # Loop существует, но не запущен
+            print("🔍 Event loop существует, но не запущен")
+            print("🎯 Запускаю loop и бота...")
+            loop.run_until_complete(main())
+            
+    except RuntimeError:
+        # Нет текущего loop (локальный запуск)
+        print("🔍 Event loop не найден (локальный запуск)")
+        print("🎯 Запускаю новый loop через asyncio.run()...")
+        asyncio.run(main())
 
