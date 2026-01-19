@@ -2316,15 +2316,34 @@ async def main():
 if __name__ == '__main__':
     try:
         import sys
-        print(f"🐍 Python версия: {sys.version}")
         
-        # Используем asyncio.run() для Python 3.7+
+        # ОЧЕНЬ ВАЖНО: Проверяем версию Python и запускаем правильно
+        if sys.platform == 'win32':
+            # Для Windows
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        
+        # Запускаем бота
+        print("🚀 Запускаем бота...")
         asyncio.run(main())
         
     except KeyboardInterrupt:
-        print("\n\n🛑 Бот остановлен пользователем (Ctrl+C)")
+        print("\n\n🛑 Бот остановлен пользователем")
         sys.exit(0)
+    except RuntimeError as e:
+        if "event loop is already running" in str(e):
+            print("⚠️ Ошибка event loop. Пробую альтернативный запуск...")
+            # Альтернативный способ запуска
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(main())
+            finally:
+                loop.close()
+        else:
+            print(f"\n❌ RuntimeError: {e}")
+            sys.exit(1)
     except Exception as e:
         print(f"\n❌ Непредвиденная ошибка: {e}")
-        logger.error(f"Непредвиденная ошибка: {e}", exc_info=True)
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
