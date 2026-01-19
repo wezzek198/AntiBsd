@@ -2302,6 +2302,9 @@ async def main():
                    print(f"{'='*50}")
         print("📡 Ожидание команд...")
 
+            print(f"{'='*50}")
+        print("📡 Ожидание команд...")
+
         # 🎯 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Запускаем polling в отдельном потоке
         import threading
         
