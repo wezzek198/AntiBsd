@@ -1,3 +1,30 @@
+#!/usr/bin/env python3
+# ЭКС
+import sys
+import subprocess
+import os
+
+def install_packages():
+    """Пытаемся установить зависимости если их нет"""
+    try:
+        import telethon
+        import telegram
+        return True
+    except ImportError:
+        print("⚠️ Зависимости не установлены, пытаюсь установить...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "python-telegram-bot", "telethon"])
+            print("✅ Зависимости установлены!")
+            return True
+        except:
+            print("❌ Не удалось установить зависимости!")
+            return False
+
+if not install_packages():
+    sys.exit(1)
+
+# Докер опять накрылся.
+
 import logging
 import json
 import os
@@ -2305,3 +2332,4 @@ if __name__ == '__main__':
         logger.error(f"Непредвиденная ошибка: {e}", exc_info=True)
 
         sys.exit(1)
+
